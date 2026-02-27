@@ -1,0 +1,30 @@
+name: Deploy to Ubuntu
+on:
+  push:
+    branches: [ main ] # 只要 main 分支有推送就自动触发
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 魔法步骤：赋予 GitHub 服务器 IPv6 访问能力
+      - name: Set up WARP for IPv6
+        uses: fscarmen/warp-on-actions@v1.1
+        with:
+          stack: dual
+
+      # 通过 IPv6 登录你的虚拟机拉取代码
+      - name: SSH Deploy
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22222
+          protocol: tcp6
+          script: |
+            cd ~/my-hono-app
+            git pull origin main
+            npm install
+            # 使用 PM2 无缝重启你的 Node 服务
+            pm2 restart index.js || pm2 start index.js --name "hono-app"
