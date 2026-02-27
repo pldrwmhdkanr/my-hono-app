@@ -1,20 +1,37 @@
 name: Deploy to Ubuntu
 on:
   push:
-    branches: [ main ] # 只要 main 分支有推送就自动触发
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # 魔法步骤：赋予 GitHub 服务器 IPv6 访问能力
+      # 第一步：GitHub 服务器拉取你的最新代码
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 第二步：挂载 IPv6 翅膀
       - name: Set up WARP for IPv6
         uses: fscarmen/warp-on-actions@v1.1
         with:
           stack: dual
 
-      # 通过 IPv6 登录你的虚拟机拉取代码
-      - name: SSH Deploy
+      # 第三步：直接将代码通过 SSH 塞给服务器（完美绕过服务器 Git 被墙的问题）
+      - name: Sync Code to Server
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22222
+          protocol: tcp6
+          # 目前项目里需要的核心文件，后续加了新文件可以写 "*"
+          source: "index.js,package.json"
+          target: "/home/xueyanlei/my-hono-app"
+
+      # 第四步：登录服务器，加载环境并启动服务
+      - name: Start Service
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -23,8 +40,13 @@ jobs:
           port: 22222
           protocol: tcp6
           script: |
+            # 1. 显式加载 NVM 环境，解决 npm 和 pm2 找不到的问题
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            
+            # 2. 进入项目目录，由于我们在国内已经配置了 npm 淘宝镜像，这一步安装会非常快
             cd ~/my-hono-app
-            git pull origin main
             npm install
-            # 使用 PM2 无缝重启你的 Node 服务
+            
+            # 3. 启动或重启服务
             pm2 restart index.js || pm2 start index.js --name "hono-app"
