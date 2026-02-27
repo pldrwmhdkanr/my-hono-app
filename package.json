@@ -1,0 +1,16 @@
+{
+  "name": "my-hono-app",
+  "version": "1.0.0",
+  "description": "a hono serve",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hono/node-server": "^1.19.9",
+    "hono": "^4.12.3"
+  }
+}
